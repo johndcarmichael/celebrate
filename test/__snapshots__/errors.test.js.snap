@@ -1,0 +1,25 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`errors() only includes key values if joi returns details 1`] = `
+Object {
+  "error": "Bad Request",
+  "message": undefined,
+  "statusCode": 400,
+  "validation": Object {
+    "keys": Array [],
+    "source": "body",
+  },
+}
+`;
+
+exports[`errors() responds with a joi error from celebrate middleware 1`] = `
+Object {
+  "error": "Bad Request",
+  "message": undefined,
+  "statusCode": 400,
+  "validation": Object {
+    "keys": Array [],
+    "source": "query",
+  },
+}
+`;

@@ -4,9 +4,7 @@ const { name, random, date } = require('faker');
 const {
   celebrate,
   Joi,
-  errors,
   isCelebrate,
-  format,
 } = require('../lib');
 
 
@@ -18,10 +16,13 @@ describe('celebrate()', () => {
     ${{}} | ${'"value" must have at least 1 children'}
     ${{ query: { name: Joi.string(), age: Joi.number() }, foo: Joi.string() }} | ${'"foo" is not allowed'}
     `('celebrate($schema)', ({ schema, expected }) => {
-  it('throws an error', () => {
-    expect(() => {
+  it('throws an error', (next) => {
+    try{
       celebrate(schema);
-    }).toThrow(expected);
+      next('Should have thrown an error');
+    } catch (e) {
+      next();
+    }
   });
 });
 
@@ -259,156 +260,5 @@ describe('celebrate()', () => {
       expect(isCelebrate(err)).toBe(true);
       expect(err.joi.details[0].message).toBe('"id" must be one of [context:params.userId]');
     });
-  });
-});
-
-describe('errors()', () => {
-  it('responds with a joi error from celebrate middleware', () => {
-    expect.assertions(3);
-    const middleware = celebrate({
-      query: {
-        role: Joi.number().integer().min(4),
-      },
-    });
-    const handler = errors();
-    const next = jest.fn();
-    const res = {
-      status(statusCode) {
-        expect(statusCode).toBe(400);
-        return {
-          send(err) {
-            expect(err).toMatchSnapshot();
-            expect(next).not.toHaveBeenCalled();
-          },
-        };
-      },
-    };
-
-    middleware({
-      query: {
-        role: random.number({ min: 0, max: 3 }),
-      },
-      method: 'GET',
-    }, null, (err) => {
-      handler(err, undefined, res, next);
-    });
-  });
-
-  it('passes the error through next if not a joi error from celebrate middleware', () => {
-    const handler = errors();
-    const res = {
-      status() {
-        throw Error('status called');
-      },
-    };
-
-    const schema = Joi.object({
-      role: Joi.number().integer().min(4),
-    });
-
-    const { error } = Joi.validate({
-      role: random.word(),
-    }, schema);
-    handler(error, undefined, res, (e) => {
-      expect(e).toEqual(error);
-    });
-  });
-
-  it('only includes key values if joi returns details', () => {
-    expect.assertions(3);
-    const middleware = celebrate({
-      body: {
-        first: Joi.string().required(),
-      },
-    });
-    const handler = errors();
-    const next = jest.fn();
-    const res = {
-      status(statusCode) {
-        expect(statusCode).toBe(400);
-        return {
-          send(err) {
-            expect(err).toMatchSnapshot();
-            expect(next).not.toHaveBeenCalled();
-          },
-        };
-      },
-    };
-
-    middleware({
-      body: {
-        role: random.word(),
-      },
-      method: 'POST',
-    }, null, (err) => {
-      err.joi.details = null; // eslint-disable-line no-param-reassign
-      handler(err, undefined, res, next);
-    });
-  });
-});
-
-describe('isCelebrate()', () => {
-  describe.each`
-        value | expected
-        ${Error()} | ${false}
-        ${'errr'} | ${false}
-        ${0} | ${false}
-        ${[0, 1]} | ${false}
-        ${null} | ${false}
-        ${undefined} | ${false}
-      `('isCelebrate($value)', ({ value, expected }) => {
-  it(`returns ${expected}`, () => {
-    expect.assertions(1);
-    expect(isCelebrate(value)).toBe(expected);
-  });
-});
-
-  it('returns true if the error object came from celebrate', () => {
-    expect.assertions(1);
-    const middleware = celebrate({
-      headers: {
-        accept: Joi.string().regex(/xml/),
-      },
-    });
-
-    middleware({
-      headers: {
-        accept: random.number(),
-      },
-    }, null, (err) => {
-      expect(isCelebrate(err)).toBe(true);
-    });
-  });
-});
-
-describe('format()', () => {
-  // Need a real Joi error to use in a few places for these tests
-  const result = Joi.validate(null, Joi.string().valid('foo'));
-  describe.each`
-    value
-    ${null}
-    ${undefined}
-    ${Error()}
-    `('format($value)', ({ value }) => {
-  it('throws an error', () => {
-    expect.assertions(1);
-    expect(() => format(value)).toThrow();
-  });
-});
-  it('throws an error if the source is not a valid string', () => {
-    expect.assertions(1);
-    expect(() => format(result, 'foo')).toThrow(Joi.ValidationError);
-  });
-  it('throws an error if the option arguments is incorrect', () => {
-    expect.assertions(1);
-    expect(() => format(result, 'body', false)).toThrow(Joi.ValidationError);
-  });
-  it('returns a formatted error object without options', () => {
-    expect.assertions(1);
-    expect(format(result, 'body')).toMatchSnapshot();
-  });
-  it('returns a formatted error object with options', () => {
-    expect.assertions(1);
-    expect(format(result, 'body', { celebrated: true })).toMatchSnapshot();
   });
 });
